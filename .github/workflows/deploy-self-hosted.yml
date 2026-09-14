@@ -1,0 +1,31 @@
+name: Deploy Mercado
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: mercado-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy produção
+        shell: bash
+        env:
+          APP_DIR: /home/mercado/htdocs/mercado.superamplitude.com
+          PORT: 3010
+        run: |
+          chmod +x deploy/bootstrap-vps.sh
+          bash deploy/bootstrap-vps.sh
+
+      - name: Health check
+        shell: bash
+        run: curl -fsS http://127.0.0.1:3010/api/health
