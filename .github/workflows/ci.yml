@@ -53,6 +53,8 @@ jobs:
           node --check src/db.js
           node --check src/payments.js
           node --check src/payment-routes.js
+          node --check src/admin-ops-routes.js
+          node --check src/staff-routes.js
           node --check scripts/init-db.js
           node --check scripts/seed.js
           node --check scripts/import-openfoodfacts.js
@@ -75,3 +77,7 @@ jobs:
           curl -fsS http://127.0.0.1:3010/api/health | grep -q '"ok":true'
           curl -fsS http://127.0.0.1:3010/api/departments | grep -q 'Mercearia'
           curl -fsS http://127.0.0.1:3010/ | grep -q 'Mercado SuperAmplitude'
+          TOKEN=$(curl -fsS -X POST http://127.0.0.1:3010/api/auth/login -H 'content-type: application/json' -d '{"email":"admin@example.com","password":"ci-only-password"}' | node -pe "JSON.parse(require('fs').readFileSync(0,'utf8')).token")
+          test -n "$TOKEN"
+          curl -fsS http://127.0.0.1:3010/api/admin/summary -H "authorization: Bearer $TOKEN" | grep -q 'products'
+          curl -fsS http://127.0.0.1:3010/api/admin/staff -H "authorization: Bearer $TOKEN" | grep -q 'super_admin'
