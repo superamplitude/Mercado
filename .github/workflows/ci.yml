@@ -9,21 +9,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    services:
-      mysql:
-        image: mysql:8.4
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: mercado
-          MYSQL_USER: mercado
-          MYSQL_PASSWORD: mercado
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -umercado -pmercado"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
     env:
       NODE_ENV: test
       PORT: 3010
@@ -44,6 +29,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Start MySQL
+        run: |
+          sudo systemctl start mysql
+          sudo mysql -e "CREATE DATABASE IF NOT EXISTS mercado CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          sudo mysql -e "CREATE USER IF NOT EXISTS 'mercado'@'127.0.0.1' IDENTIFIED BY 'mercado';"
+          sudo mysql -e "GRANT ALL PRIVILEGES ON mercado.* TO 'mercado'@'127.0.0.1'; FLUSH PRIVILEGES;"
+          mysqladmin ping -h 127.0.0.1 -umercado -pmercado
       - name: Install
         run: npm install
       - name: Syntax
@@ -60,6 +52,7 @@ jobs:
           node --check scripts/import-openfoodfacts-bulk.js
           node --check scripts/mirror-images.js
           node --check public/app.js
+          node --check public/admin.js
       - name: Database
         run: |
           npm run db:init
