@@ -16,7 +16,34 @@ async function loadProducts(){const p=new URLSearchParams({limit:'40'});if(state
 
 function renderCart(){$('#cartCount').textContent=cartQty();if(!state.cart.length){$('#cartItems').innerHTML='<div class="empty">Seu carrinho está vazio.</div>';$('#cartTotal').textContent=money.format(0);return}$('#cartItems').innerHTML=state.cart.map(i=>`<div class="cart-item"><div><strong>${esc(i.name)}</strong><div class="muted">${money.format(i.price)} cada</div></div><div class="qty"><button data-minus="${i.id}">−</button><strong>${i.qty}</strong><button data-plus="${i.id}">+</button></div></div>`).join('');state.cart.forEach(i=>{document.querySelector(`[data-minus="${i.id}"]`)?.addEventListener('click',()=>changeQty(i.id,-1));document.querySelector(`[data-plus="${i.id}"]`)?.addEventListener('click',()=>changeQty(i.id,1))});$('#cartTotal').textContent=money.format(state.cart.reduce((s,i)=>s+i.price*i.qty,0))}
 
-async function checkout(){if(!state.cart.length)return alert('Adicione produtos ao carrinho.');const customerName=prompt('Nome para o pedido:');if(!customerName)return;const customerPhone=prompt('Telefone/WhatsApp:');if(!customerPhone)return;const street=prompt('Rua:');const number=prompt('Número:');const district=prompt('Bairro:');const city=prompt('Cidade:');const stateCode=(prompt('Estado (UF):')||'').toUpperCase();const postalCode=prompt('CEP:');if(!street||!number||!district||!city||stateCode.length!==2||!postalCode)return alert('Preencha o endereço completo.');try{const order=await api('/api/orders',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({customerName,customerPhone,address:{street,number,district,city,state:stateCode,postalCode},items:state.cart.map(i=>({productId:i.id,qty:i.qty}))})});state.cart=[];saveCart();closeCart();alert(`Pedido ${order.orderNumber} criado. Total: ${money.format(order.total)}. O pagamento será concluído na próxima etapa.`)}catch(e){alert(e.message)}}
+async function checkout(){
+  if(!state.cart.length)return alert('Adicione produtos ao carrinho.');
+  const customerName=prompt('Nome para o pedido:');if(!customerName)return;
+  const customerPhone=prompt('Telefone/WhatsApp:');if(!customerPhone)return;
+  const customerEmail=prompt('E-mail (opcional, recomendado para pagamento online):')||'';
+  const street=prompt('Rua:');const number=prompt('Número:');const district=prompt('Bairro:');const city=prompt('Cidade:');const stateCode=(prompt('Estado (UF):')||'').toUpperCase();const postalCode=prompt('CEP:');
+  if(!street||!number||!district||!city||stateCode.length!==2||!postalCode)return alert('Preencha o endereço completo.');
+  const provider=$('#paymentProvider')?.value||'later';
+  let order;
+  try{
+    order=await api('/api/orders',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({customerName,customerEmail,customerPhone,address:{street,number,district,city,state:stateCode,postalCode},items:state.cart.map(i=>({productId:i.id,qty:i.qty}))})});
+    if(provider==='later'){
+      state.cart=[];saveCart();closeCart();
+      alert(`Pedido ${order.orderNumber} criado. Total: ${money.format(order.total)}. Pagamento combinado/na entrega.`);
+      return;
+    }
+    try{
+      const payment=await api('/api/payments/create',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({orderNumber:order.orderNumber,customerPhone,provider})});
+      state.cart=[];saveCart();closeCart();
+      if(payment.checkoutUrl){location.assign(payment.checkoutUrl);return}
+      alert(`Pedido ${order.orderNumber} criado, mas o provedor não retornou uma URL de pagamento.`);
+    }catch(paymentError){
+      alert(`Pedido ${order.orderNumber} foi criado, mas o pagamento não pôde ser iniciado: ${paymentError.message}`);
+    }
+  }catch(e){
+    alert(e.message);
+  }
+}
 
 function esc(v=''){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
 
