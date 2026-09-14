@@ -11,6 +11,8 @@ import { z } from 'zod';
 import 'dotenv/config';
 import { pool, query } from './db.js';
 import { registerPaymentRoutes } from './payment-routes.js';
+import { registerAdminOpsRoutes } from './admin-ops-routes.js';
+import { registerStaffRoutes } from './staff-routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.resolve(__dirname, '../public');
@@ -226,6 +228,8 @@ app.patch('/api/admin/orders/:id/status', auth(['super_admin','admin','manager',
   } catch (e) { next(e); }
 });
 
+registerAdminOpsRoutes(app, { auth, query });
+registerStaffRoutes(app, { auth, query });
 registerPaymentRoutes(app, { query });
 
 app.post('/api/ai/ask', async (req, res, next) => {
