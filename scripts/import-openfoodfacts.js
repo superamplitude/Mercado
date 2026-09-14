@@ -6,7 +6,8 @@ import { pool } from '../src/db.js';
 const baseUrl = process.env.OFF_BASE_URL || 'https://world.openfoodfacts.org/api/v2/search';
 const country = process.env.OFF_COUNTRY || 'brazil';
 const pageSize = Math.min(100, Number(process.env.OFF_PAGE_SIZE || 100));
-const maxPages = Math.max(1, Number(process.env.OFF_MAX_PAGES || 10));
+const maxPages = Math.max(0, Number(process.env.OFF_MAX_PAGES || 0));
+const delayMs = Math.max(0, Number(process.env.OFF_DELAY_MS || 250));
 const imageStorageDir = process.env.IMAGE_STORAGE_DIR || path.resolve('public/media/products');
 const imageBaseUrl = (process.env.IMAGE_BASE_URL || '').replace(/\/$/, '');
 const shouldDownloadImages = String(process.env.OFF_DOWNLOAD_IMAGES || 'true') === 'true';
@@ -34,6 +35,7 @@ const categoryHints = {
 };
 
 const slugify = (value='') => value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 function inferDepartment(tags=[]) {
   const hay = tags.join(' ').toLowerCase();
@@ -68,13 +70,13 @@ const conn = await pool.getConnection();
 let imported = 0;
 let skipped = 0;
 try {
-  for (let page=1; page<=maxPages; page++) {
+  for (let page=1; maxPages === 0 || page<=maxPages; page++) {
     const url = new URL(baseUrl);
     url.searchParams.set('countries_tags_en', country);
     url.searchParams.set('page', String(page));
     url.searchParams.set('page_size', String(pageSize));
     url.searchParams.set('fields','code,product_name,brands,quantity,categories_tags,image_front_url,nutriments');
-    console.log(`Página ${page}/${maxPages}: ${url}`);
+    console.log(`Página ${page}${maxPages ? `/${maxPages}` : ''}: ${url}`);
     const response = await fetch(url, { headers: { 'user-agent':'MercadoSuperAmplitude/1.0' } });
     if (!response.ok) throw new Error(`Open Food Facts HTTP ${response.status}`);
     const body = await response.json();
@@ -97,6 +99,9 @@ try {
         [categoryId,sku,barcode,name,slug,p.brands || null,null,p.quantity || null,imageUrl,p.image_front_url || null,'CC BY-SA / Open Food Facts','Open Food Facts',barcode,JSON.stringify(p.nutriments || {})]);
       imported++;
     }
+    console.log(`Acumulado: ${imported} importados/atualizados; ${skipped} ignorados.`);
+    if (products.length < pageSize) break;
+    if (delayMs) await sleep(delayMs);
   }
   console.log(`Importação concluída. Importados/atualizados: ${imported}. Ignorados: ${skipped}.`);
 } finally {
