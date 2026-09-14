@@ -11,8 +11,10 @@ export function registerPaymentRoutes(app, { query }) {
   app.post('/api/payments/create', async (req, res, next) => {
     try {
       const orderNumber = String(req.body?.orderNumber || '').trim();
+      const customerPhone = String(req.body?.customerPhone || '').trim();
       const provider = String(req.body?.provider || '').trim();
-      const orders = await query('SELECT * FROM orders WHERE order_number=? LIMIT 1', [orderNumber]);
+      if (!orderNumber || !customerPhone) return res.status(400).json({ error: 'Pedido e telefone são obrigatórios' });
+      const orders = await query('SELECT * FROM orders WHERE order_number=? AND customer_phone=? LIMIT 1', [orderNumber, customerPhone]);
       const order = orders[0];
       if (!order) return res.status(404).json({ error: 'Pedido não encontrado' });
       if (order.payment_status === 'paid') return res.status(409).json({ error: 'Pedido já pago' });
