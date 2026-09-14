@@ -11,7 +11,9 @@
     "dev": "node --watch src/server.js",
     "db:init": "node scripts/init-db.js",
     "seed": "node scripts/seed.js",
-    "import:off": "node scripts/import-openfoodfacts.js"
+    "import:off": "node scripts/import-openfoodfacts.js",
+    "import:off:bulk": "node scripts/import-openfoodfacts-bulk.js",
+    "images:mirror": "node scripts/mirror-images.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
