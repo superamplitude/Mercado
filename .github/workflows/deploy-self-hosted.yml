@@ -1,8 +1,9 @@
 name: Deploy Mercado
 
 on:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows: ["CI Mercado"]
+    types: [completed]
   workflow_dispatch:
 
 concurrency:
@@ -11,11 +12,14 @@ concurrency:
 
 jobs:
   deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: self-hosted
     timeout-minutes: 20
     steps:
-      - name: Checkout
+      - name: Checkout main
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Deploy produção
         shell: bash
