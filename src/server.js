@@ -242,7 +242,7 @@ app.post('/api/ai/ask', async (req, res, next) => {
 });
 
 app.get('/admin', (_req,res) => res.sendFile(path.join(publicDir,'admin.html')));
-app.get('*', (_req,res) => res.sendFile(path.join(publicDir,'index.html')));
+app.get('/{*splat}', (_req,res) => res.sendFile(path.join(publicDir,'index.html')));
 
 app.use((err, req, res, _next) => {
   console.error(err);
