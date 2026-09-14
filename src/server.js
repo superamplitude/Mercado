@@ -16,14 +16,26 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.resolve(__dirname, '../public');
 const app = express();
 const port = Number(process.env.PORT || 3010);
-const jwtSecret = process.env.JWT_SECRET || 'change-me-now';
+const isProduction = process.env.NODE_ENV === 'production';
+const configuredSecret = String(process.env.JWT_SECRET || '');
+if (isProduction && configuredSecret.length < 32) throw new Error('JWT_SECRET deve ter pelo menos 32 caracteres em produção.');
+const jwtSecret = configuredSecret || 'development-only-secret-change-before-production';
+const appUrl = String(process.env.APP_URL || '').replace(/\/$/, '');
+const allowedOrigins = new Set([appUrl, 'http://127.0.0.1:3010', 'http://localhost:3010'].filter(Boolean));
 
 app.set('trust proxy', 1);
+app.disable('x-powered-by');
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({
+  credentials: true,
+  origin(origin, callback) {
+    if (!origin || !isProduction || allowedOrigins.has(origin)) return callback(null, true);
+    return callback(new Error('Origem não permitida pelo CORS'));
+  }
+}));
 app.use(express.json({ limit: '2mb' }));
 app.use(morgan('combined'));
-app.use(express.static(publicDir, { maxAge: process.env.NODE_ENV === 'production' ? '1h' : 0 }));
+app.use(express.static(publicDir, { maxAge: isProduction ? '1h' : 0 }));
 
 function slugify(value = '') {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
