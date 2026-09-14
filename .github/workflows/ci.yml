@@ -1,0 +1,69 @@
+name: CI Mercado
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: mercado
+          MYSQL_USER: mercado
+          MYSQL_PASSWORD: mercado
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -umercado -pmercado"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      NODE_ENV: test
+      PORT: 3010
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_NAME: mercado
+      DB_USER: mercado
+      DB_PASSWORD: mercado
+      JWT_SECRET: ci-only-secret
+      ADMIN_EMAIL: admin@example.com
+      ADMIN_PASSWORD: ci-only-password
+      IMAGE_BASE_URL: https://example.invalid
+      DELIVERY_BASE_FEE: 8.90
+      FREE_DELIVERY_FROM: 199
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install
+        run: npm install
+      - name: Syntax
+        run: |
+          node --check src/server.js
+          node --check src/db.js
+          node --check scripts/init-db.js
+          node --check scripts/seed.js
+          node --check scripts/import-openfoodfacts.js
+      - name: Database
+        run: |
+          npm run db:init
+          npm run seed
+      - name: API smoke test
+        run: |
+          node src/server.js > /tmp/mercado.log 2>&1 &
+          APP_PID=$!
+          trap 'kill $APP_PID || true; cat /tmp/mercado.log' EXIT
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:3010/api/health; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:3010/api/departments | grep -q 'Mercearia'
