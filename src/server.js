@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import 'dotenv/config';
 import { pool, query } from './db.js';
+import { registerPaymentRoutes } from './payment-routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.resolve(__dirname, '../public');
@@ -212,6 +213,8 @@ app.patch('/api/admin/orders/:id/status', auth(['super_admin','admin','manager',
     res.json({ ok: true, status });
   } catch (e) { next(e); }
 });
+
+registerPaymentRoutes(app, { query });
 
 app.post('/api/ai/ask', async (req, res, next) => {
   try {
