@@ -35,10 +35,10 @@ try {
   if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
     const email = process.env.ADMIN_EMAIL.toLowerCase();
     const passwordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD, 12);
-    await conn.execute("INSERT INTO users(name,email,password_hash,role,active) VALUES('Super Admin',?,?,'super_admin',1) ON DUPLICATE KEY UPDATE name=VALUES(name),role='super_admin',active=1", [email,passwordHash]);
+    await conn.execute("INSERT INTO users(name,email,password_hash,role,active) VALUES('Super Admin',?,?,'super_admin',1) ON DUPLICATE KEY UPDATE name=VALUES(name),password_hash=VALUES(password_hash),role='super_admin',active=1", [email,passwordHash]);
   }
   await conn.commit();
-  console.log('Taxonomia criada. Administrador criado quando ADMIN_EMAIL e ADMIN_PASSWORD estão definidos.');
+  console.log('Taxonomia criada. Administrador criado/atualizado quando ADMIN_EMAIL e ADMIN_PASSWORD estão definidos.');
 } catch (error) {
   await conn.rollback();
   throw error;
